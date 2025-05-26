@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caballos - Horse Racing System</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <div class="nav-container">
+            <div class="logo">🏇 Horse Racing System</div>
+            <nav class="nav-menu">
+                <a href="/" class="nav-btn">🏁 Carreras</a>
+                <a href="/horses" class="nav-btn active">🐎 Caballos</a>
+                <a href="/dashboard" class="nav-btn">📊 Dashboard</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1>🐎 Scraping de Caballos</h1>
+        
+        <div class="scrape-section">
+            <input type="text" 
+                   class="search-box" 
+                   id="horseUrl" 
+                   placeholder="URL del caballo para scrapear (ej: https://www.horseracingnation.com/horse/Mine_Strike)" 
+                   style="width: 70%;">
+            <button class="search-btn" onclick="scrapeHorse()">🔍 Scrapear Caballo</button>
+        </div>
+        
+        <div id="scrapeResults" class="scrape-results">
+            <div class="info">
+                <p>📋 Ingresa la URL completa del caballo de HorseRacingNation.com para scrapear sus datos.</p>
+                <p><strong>Ejemplo:</strong> https://www.horseracingnation.com/horse/Mine_Strike</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

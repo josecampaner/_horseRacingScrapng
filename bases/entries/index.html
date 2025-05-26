@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados de Carreras - Horse Racing System</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <div class="nav-container">
+            <div class="logo">🏇 Horse Racing System</div>
+            <nav class="nav-menu">
+                <a href="/" class="nav-btn active">🏁 Carreras</a>
+                <a href="/horses" class="nav-btn">🐎 Caballos</a>
+                <a href="/dashboard" class="nav-btn">📊 Dashboard</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="container" style="margin: 20px auto; max-width: 1200px;">
+        <h1>Resultados de Carreras de Caballos</h1>
+        
+        <!-- Sección de Búsqueda -->
+        <section class="search-container">
+            <input type="text" 
+                   id="searchQuery" 
+                   placeholder="Introduce la URL de HorseRacingNation para scrapear..."
+                   aria-label="URL para scrapear carreras">
+            <button onclick="searchRaces()" class="action-btn success">🔍 Buscar</button>
+        </section>
+        
+        <!-- Sección de Carreras Guardadas -->
+        <section id="carrerasGuardadas" style="margin-bottom: 30px; display: none;">
+            <h2>🏁 Carreras Scrapeadas (Total: <span id="totalCarreras">0</span>)</h2>
+            <button onclick="scrapearTodosLosCaballos()" class="action-btn danger">
+                🐎 SCRAPEAR TODOS LOS CABALLOS
+            </button>
+            <div id="listaCarreras">
+                <!-- Las carreras aparecerán aquí solo después del scraping -->
+            </div>
+        </section>
+        
+        <!-- Sección de Resultados del Scraping -->
+        <section id="raceResults" class="race-results">
+            <!-- Los resultados del scraping se mostrarán aquí -->
+        </section>
+    </main>
+
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
+</body>
+</html>
