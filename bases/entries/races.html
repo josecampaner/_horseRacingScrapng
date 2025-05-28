@@ -23,6 +23,18 @@
     <main class="container" style="margin: 20px auto; max-width: 1200px;">
         <h1>Resultados de Carreras de Caballos</h1>
         
+        <!-- Sección de Funciones de Base de Datos -->
+        <section style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
+            <div class="database-functions">
+                <h3>🗄️ Funciones de Base de Datos</h3>
+                <div class="function-buttons">
+                    <button onclick="revisarYActualizarCaballos()" class="action-btn secondary">🔍 Revisar y Actualizar Caballos</button>
+                    <button onclick="revisarCaballosNull()" class="action-btn warning">⚠️ Revisar NULL Horses</button>
+                    <button onclick="revisarPedigreeYAñadirCaballos()" class="action-btn info">🧬 Revisar Pedigree</button>
+                </div>
+            </div>
+        </section>
+        
         <!-- Sección de Búsqueda -->
         <section class="search-container">
             <input type="text" 
@@ -34,10 +46,20 @@
         
         <!-- Sección de Carreras Guardadas -->
         <section id="carrerasGuardadas" style="margin-bottom: 30px; display: none;">
-            <h2>🏁 Carreras Scrapeadas (Total: <span id="totalCarreras">0</span>)</h2>
-            <button onclick="scrapearTodosLosCaballos()" class="action-btn danger">
-                🐎 SCRAPEAR TODOS LOS CABALLOS
-            </button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>🏁 Carreras Scrapeadas (Total: <span id="totalCarreras">0</span>) | 🐎 Caballos (Total: <span id="totalCaballos">0</span>)</h2>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <!-- Solo funciones asociadas a URL scrapeada -->
+                    <button onclick="scrapearTodosLosCaballos()" class="action-btn danger" 
+                            style="font-size: 11px; padding: 6px 10px; font-weight: normal;">
+                        🚀 Scrapear Todos los Caballos
+                    </button>
+                    <button onclick="revisarParrillaDeSalida()" class="action-btn warning" 
+                            style="font-size: 11px; padding: 6px 10px; font-weight: normal;">
+                        ⚠️ Revisar Parrilla de Salida
+                    </button>
+                </div>
+            </div>
             <div id="listaCarreras">
                 <!-- Las carreras aparecerán aquí solo después del scraping -->
             </div>

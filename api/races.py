@@ -61,8 +61,9 @@ def get_race_entries(race_id):
         
         cur = conn.cursor()
         cur.execute("""
-            SELECT horse_name, horse_id, sire, trainer, jockey
-            FROM race_entries WHERE race_id = %s ORDER BY horse_name
+            SELECT horse_name, horse_id, sire, trainer, jockey, 
+                   status, status_history, status_changed_at, post_position
+            FROM race_entries WHERE race_id = %s ORDER BY post_position NULLS LAST, horse_name
         """, (race_id,))
         
         entries = []
@@ -72,7 +73,11 @@ def get_race_entries(race_id):
                 'horse_id': row[1],
                 'sire': row[2], 
                 'trainer': row[3], 
-                'jockey': row[4]
+                'jockey': row[4],
+                'status': row[5],
+                'status_history': row[6],
+                'status_changed_at': row[7].isoformat() if row[7] else None,
+                'post_position': row[8]
             }
             entries.append(entry)
         

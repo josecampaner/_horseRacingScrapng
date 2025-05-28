@@ -1,6 +1,8 @@
 import logging
 import urllib.parse
 from utils.ipa_generator import generate_english_ipa
+from utils.horse_ipa_generator import generate_horse_ipa
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +68,13 @@ def find_or_create_sire_horse_id(cursor, sire_name):
             return sire_id
         
         # Si no existe, crearlo
+        current_time = datetime.now()
         insert_sire_query = """
-        INSERT INTO horses (horse_id, horse_name, status)
-        VALUES (%s, %s, %s)
+        INSERT INTO horses (horse_id, horse_name, status, created_at)
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT (horse_id) DO NOTHING
         """
-        cursor.execute(insert_sire_query, (sire_id, sire_name_clean, 'sire'))
+        cursor.execute(insert_sire_query, (sire_id, sire_name_clean, 'sire', current_time))
         
         logger.info(f"Sire creado: {sire_name_clean} -> {sire_id}")
         return sire_id
@@ -91,27 +94,24 @@ def find_or_create_trainer(cursor, trainer_name):
     trainer_name_clean = trainer_name.strip()
     
     try:
-        # Generar trainer_id basado en el nombre
-        trainer_id = trainer_name_clean.replace(' ', '_').replace("'", "").replace('.', '').replace(',', '')
-        
-        # Verificar si ya existe
-        cursor.execute("SELECT trainer_name FROM trainers WHERE trainer_id = %s", (trainer_id,))
+        # Verificar si ya existe usando trainer_name como PRIMARY KEY
+        cursor.execute("SELECT trainer_name FROM trainers WHERE trainer_name = %s", (trainer_name_clean,))
         result = cursor.fetchone()
         
         if result:
             return trainer_name_clean
         
-        # Si no existe, crearlo con IPA básico
+        # Si no existe, crearlo
         trainer_ipa = generate_english_ipa(trainer_name_clean) if trainer_name_clean else None
         
         insert_trainer_query = """
-        INSERT INTO trainers (trainer_id, trainer_name, trainer_name_ipa)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (trainer_id) DO NOTHING
+        INSERT INTO trainers (trainer_name, trainer_name_ipa)
+        VALUES (%s, %s)
+        ON CONFLICT (trainer_name) DO NOTHING
         """
-        cursor.execute(insert_trainer_query, (trainer_id, trainer_name_clean, trainer_ipa))
+        cursor.execute(insert_trainer_query, (trainer_name_clean, trainer_ipa))
         
-        logger.info(f"Trainer creado: {trainer_name_clean} -> {trainer_id} (IPA: {trainer_ipa})")
+        logger.info(f"Trainer creado: {trainer_name_clean} (IPA: {trainer_ipa})")
         return trainer_name_clean
         
     except Exception as e:
@@ -129,11 +129,8 @@ def find_or_create_jockey(cursor, jockey_name):
     jockey_name_clean = jockey_name.strip()
     
     try:
-        # Generar jockey_id basado en el nombre
-        jockey_id = jockey_name_clean.replace(' ', '_').replace("'", "").replace('.', '').replace(',', '')
-        
-        # Verificar si ya existe
-        cursor.execute("SELECT jockey_name FROM jockeys WHERE jockey_id = %s", (jockey_id,))
+        # Verificar si ya existe usando jockey_name como PRIMARY KEY
+        cursor.execute("SELECT jockey_name FROM jockeys WHERE jockey_name = %s", (jockey_name_clean,))
         result = cursor.fetchone()
         
         if result:
@@ -143,15 +140,180 @@ def find_or_create_jockey(cursor, jockey_name):
         jockey_ipa = generate_english_ipa(jockey_name_clean) if jockey_name_clean else None
         
         insert_jockey_query = """
-        INSERT INTO jockeys (jockey_id, jockey_name, jockey_name_ipa)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (jockey_id) DO NOTHING
+        INSERT INTO jockeys (jockey_name, jockey_name_ipa)
+        VALUES (%s, %s)
+        ON CONFLICT (jockey_name) DO NOTHING
         """
-        cursor.execute(insert_jockey_query, (jockey_id, jockey_name_clean, jockey_ipa))
+        cursor.execute(insert_jockey_query, (jockey_name_clean, jockey_ipa))
         
-        logger.info(f"Jockey creado: {jockey_name_clean} -> {jockey_id} (IPA: {jockey_ipa})")
+        logger.info(f"Jockey creado: {jockey_name_clean} (IPA: {jockey_ipa})")
         return jockey_name_clean
         
     except Exception as e:
         logger.error(f"Error al buscar/crear jockey {jockey_name}: {e}")
-        return None 
+        return None
+
+def find_or_create_owner(cursor, owner_name):
+    """
+    Busca o crea un propietario en la tabla owners con IPA.
+    Si no existe, lo crea con información básica.
+    Se llama durante el UPDATE del caballo (perfil individual).
+    """
+    if not owner_name or owner_name.strip() == '' or owner_name.lower() in ['unknown', 'n/a', 'none']:
+        return None
+    
+    owner_name_clean = owner_name.strip()
+    
+    try:
+        # Verificar si ya existe usando owner_name como PRIMARY KEY
+        cursor.execute("SELECT owner_name FROM owners WHERE owner_name = %s", (owner_name_clean,))
+        result = cursor.fetchone()
+        
+        if result:
+            return owner_name_clean
+        
+        # Si no existe, crearlo con IPA básico
+        owner_ipa = generate_english_ipa(owner_name_clean) if owner_name_clean else None
+        
+        insert_owner_query = """
+        INSERT INTO owners (owner_name, owner_name_ipa)
+        VALUES (%s, %s)
+        ON CONFLICT (owner_name) DO NOTHING
+        """
+        cursor.execute(insert_owner_query, (owner_name_clean, owner_ipa))
+        
+        logger.info(f"Owner creado: {owner_name_clean} (IPA: {owner_ipa})")
+        return owner_name_clean
+        
+    except Exception as e:
+        logger.error(f"Error al buscar/crear owner {owner_name}: {e}")
+        return None
+
+def find_or_create_breeder(cursor, breeder_name):
+    """
+    Busca o crea un criador en la tabla breeders con IPA.
+    Si no existe, lo crea con información básica.
+    Se llama durante el UPDATE del caballo (perfil individual).
+    """
+    if not breeder_name or breeder_name.strip() == '' or breeder_name.lower() in ['unknown', 'n/a', 'none']:
+        return None
+    
+    breeder_name_clean = breeder_name.strip()
+    
+    try:
+        # Verificar si ya existe usando breeder_name como PRIMARY KEY
+        cursor.execute("SELECT breeder_name FROM breeders WHERE breeder_name = %s", (breeder_name_clean,))
+        result = cursor.fetchone()
+        
+        if result:
+            return breeder_name_clean
+        
+        # Si no existe, crearlo con IPA básico
+        breeder_ipa = generate_english_ipa(breeder_name_clean) if breeder_name_clean else None
+        
+        insert_breeder_query = """
+        INSERT INTO breeders (breeder_name, breeder_name_ipa)
+        VALUES (%s, %s)
+        ON CONFLICT (breeder_name) DO NOTHING
+        """
+        cursor.execute(insert_breeder_query, (breeder_name_clean, breeder_ipa))
+        
+        logger.info(f"Breeder creado: {breeder_name_clean} (IPA: {breeder_ipa})")
+        return breeder_name_clean
+        
+    except Exception as e:
+        logger.error(f"Error al buscar/crear breeder {breeder_name}: {e}")
+        return None
+
+def find_or_create_horse_with_id(cursor, horse_id, horse_name, sire_name=None, trainer_name=None):
+    """
+    Busca o crea un caballo en la tabla horses usando un horse_id específico.
+    Esta función mantiene consistencia con los IDs usados en race_entries.
+    """
+    if not horse_id or horse_id.strip() == '' or horse_id.lower() in ['unknown', 'n/a', 'none']:
+        return None
+    
+    if not horse_name or horse_name.strip() == '' or horse_name.lower() in ['unknown', 'n/a', 'none']:
+        return None
+    
+    horse_id_clean = horse_id.strip()
+    horse_name_clean = horse_name.strip()
+    
+    try:
+        # Verificar si ya existe
+        cursor.execute("SELECT horse_name FROM horses WHERE horse_id = %s", (horse_id_clean,))
+        result = cursor.fetchone()
+        
+        if result:
+            return horse_name_clean
+        
+        # Si no existe, crearlo con el horse_id específico
+        trainer_ipa = generate_english_ipa(trainer_name) if trainer_name else None
+        current_time = datetime.now()
+        
+        insert_horse_query = """
+        INSERT INTO horses (horse_id, horse_name, trainer, trainer_ipa, status, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (horse_id) DO NOTHING
+        """
+        cursor.execute(insert_horse_query, (
+            horse_id_clean, 
+            horse_name_clean, 
+            trainer_name, 
+            trainer_ipa, 
+            'active',
+            current_time
+        ))
+        
+        logger.info(f"Caballo creado con ID específico: {horse_name_clean} -> {horse_id_clean}")
+        return horse_name_clean
+        
+    except Exception as e:
+        logger.error(f"Error al buscar/crear caballo {horse_name} con ID {horse_id}: {e}")
+        return None
+
+def find_or_create_horse(cursor, horse_name, sire_name=None, trainer_name=None):
+    """
+    Busca o crea un caballo en la tabla horses con IPA.
+    Si no existe, lo crea con información básica.
+    """
+    if not horse_name or horse_name.strip() == '' or horse_name.lower() in ['unknown', 'n/a', 'none']:
+        return None
+    
+    horse_name_clean = horse_name.strip()
+    
+    try:
+        # Generar horse_id basado en el nombre
+        horse_id = horse_name_clean.replace(' ', '_').replace("'", "").replace('.', '').replace(',', '')
+        
+        # Verificar si ya existe
+        cursor.execute("SELECT horse_name FROM horses WHERE horse_id = %s", (horse_id,))
+        result = cursor.fetchone()
+        
+        if result:
+            return horse_name_clean
+        
+        # Si no existe, crearlo sin IPA (se generará desde el perfil)
+        trainer_ipa = generate_english_ipa(trainer_name) if trainer_name else None
+        current_time = datetime.now()
+        
+        insert_horse_query = """
+        INSERT INTO horses (horse_id, horse_name, trainer, trainer_ipa, status, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (horse_id) DO NOTHING
+        """
+        cursor.execute(insert_horse_query, (
+            horse_id, 
+            horse_name_clean, 
+            trainer_name, 
+            trainer_ipa, 
+            'active',
+            current_time
+        ))
+        
+        logger.info(f"Caballo creado: {horse_name_clean} -> {horse_id} (IPA se generará desde perfil)")
+        return horse_name_clean
+        
+    except Exception as e:
+        logger.error(f"Error al buscar/crear caballo {horse_name}: {e}")
+        return None

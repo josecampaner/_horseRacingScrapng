@@ -17,6 +17,8 @@ def generate_track_ipa_and_country(track_name):
         'Belmont Park': ('/belmɑːnt pɑːrk/', 'USA'),
         'Santa Anita Park': ('/sæntə ænɪtə pɑːrk/', 'USA'),
         'Saratoga Race Course': ('/særətoʊgə reɪs kɔːrs/', 'USA'),
+        'Saratoga': ('/ˌsærəˈtoʊgə/', 'USA'),
+        'Thistledown': ('/ˈθɪsəldaʊn/', 'USA'),
         'Del Mar': ('/del mɑːr/', 'USA'),
         'Keeneland': ('/kiːnlænd/', 'USA'),
         'Oaklawn Park': ('/oʊklɔːn pɑːrk/', 'USA'),

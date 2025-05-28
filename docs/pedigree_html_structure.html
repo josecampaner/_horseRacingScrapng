@@ -1,0 +1,61 @@
+<!-- 
+ESTRUCTURA HTML DEL PEDIGREE DE HORSERACINGNATION.COM
+====================================================
+
+Este archivo contiene la estructura exacta del HTML del pedigree que se usa
+para extraer los datos de ancestros en services/scraping_service.py
+
+Ejemplo tomado de: https://www.horseracingnation.com/horse/Blazing_Bucchero
+Fecha: 27 de Mayo 2025
+
+ESTRUCTURA:
+- div.pedigree-container
+  - Primera fila (div.row.mx-0.display-flex): LADO PATERNO
+    - col-4: a.parent.sire (Padre)
+    - col-4: a.grandparent.sire + a.grandparent.dam (Abuelos paternos)
+    - col-4: 4x a.greatgrandparent (Bisabuelos paternos)
+  - Segunda fila (div.row.mx-0.display-flex): LADO MATERNO
+    - col-4: a.parent.dam (Madre)
+    - col-4: a.grandparent.sire + a.grandparent.dam (Abuelos maternos)
+    - col-4: 4x a.greatgrandparent (Bisabuelos maternos)
+
+NOTA: Los enlaces con 'horseedit.aspx' y texto '[Add Data]' se filtran automáticamente
+-->
+
+<div class="col-md pedigree-container">
+  <h3 class="bg-gray text-uppercase mb-0 p-2">
+<a class="text-light" href="/horse/Blazing_Bucchero_pedigree">Pedigree</a> /
+<a class="text-light" href="/horse/Blazing_Bucchero_progeny">Progeny</a> /
+<a class="text-light" href="/horse/Blazing_Bucchero_siblings">Siblings</a>
+  </h3>
+  <div class="row mx-0 display-flex">
+    <div class="col-4 px-0 text-center">
+<a class="parent sire" href="/horse/Bucchero">Bucchero</a>
+    </div>
+    <div class="col-4 px-0 text-center">
+<a class="grandparent sire" href="/horse/Kantheros">Kantharos</a>
+<a class="grandparent dam" href="/horse/Meetmeontime">Meetmeontime</a>
+    </div>
+    <div class="col-4 px-0 text-center">
+<a class="greatgrandparent sire" href="/horse/Lion_Heart">Lion Heart</a>
+<a class="greatgrandparent dam" href="/horse/Contessa_Halo">Contessa Halo</a>
+<a class="greatgrandparent sire" href="/horse/General_Meeting">General Meeting</a>
+<a class="greatgrandparent dam" href="/horse/Parlay_1">Parlay</a>
+    </div>
+  </div>
+  <div class="row mx-0 display-flex">
+    <div class="col-4 px-0 text-center">
+<a class="parent dam" href="/horse/Kitten_De_Pere">Kitten De Pere</a>
+    </div>
+    <div class="col-4 px-0 text-center">
+<a class="grandparent sire" href="/horse/Kittens_Joy">Kitten's Joy</a>
+<a class="grandparent dam" href="/edit/horseedit.aspx?hguid=c5ce26e9-37df-4113-96a0-7c4343c8c4e5">[Add Data]</a>
+    </div>
+    <div class="col-4 px-0 text-center">
+<a class="greatgrandparent sire" href="/horse/El_Prado">El Prado</a>
+<a class="greatgrandparent dam" href="/horse/Kittens_First">Kitten's First</a>
+<a class="greatgrandparent sire" href="/edit/horseedit.aspx?hguid=c5ce26e9-37df-4113-96a0-7c4343c8c4e5">[Add Data]</a>
+<a class="greatgrandparent dam" href="/edit/horseedit.aspx?hguid=c5ce26e9-37df-4113-96a0-7c4343c8c4e5">[Add Data]</a>
+    </div>
+  </div>
+</div> 

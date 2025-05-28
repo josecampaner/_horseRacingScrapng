@@ -8,10 +8,14 @@ import os
 logger = logging.getLogger(__name__)
 scraping_bp = Blueprint('scraping', __name__)
 
-@scraping_bp.route('/scrape', methods=['GET'])
+@scraping_bp.route('/scrape', methods=['GET', 'POST'])
 def scrape_route():
     """Endpoint completo para scrapear carreras desde HorseRacingNation y guardar en BD"""
-    url = request.args.get('url')
+    if request.method == 'POST':
+        data = request.get_json()
+        url = data.get('url') if data else None
+    else:
+        url = request.args.get('url')
     if not url:
         return jsonify({"error": "URL no proporcionada"}), 400
     
@@ -19,69 +23,29 @@ def scrape_route():
     
     try:
         # Importar funciones del sistema completo de scraping
-        sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scraping'))
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
         
-        from scraping_entries_backup_840lines import (
-            parse_race_url_data, _initialize_playwright_and_load_page, 
-            _process_race_container, save_race_data_to_db, create_database_tables,
-            _close_playwright
-        )
+        from utils.race_parser import parse_race_url_data
+        from database.models import create_database_tables, save_race_data_to_db
+        from services.race_scraping_service import scrape_races_from_url
         
-        # Parsear URL
-        parsed_url_info = parse_race_url_data(url)
-        if not parsed_url_info or parsed_url_info[0] is None or parsed_url_info[1] is None:
-            return jsonify({"error": "URL no válida o formato no reconocido"}), 400
+        # Usar la función completa que incluye completado automático de perfiles
+        result = scrape_races_from_url(url)
         
-        track_name_slug, race_date_str = parsed_url_info
-        race_date_obj = datetime.strptime(race_date_str, '%Y-%m-%d').date() if race_date_str else None
-        if not race_date_obj: 
-            return jsonify({"error": "No se pudo convertir la fecha"}), 400
-
-        logger.info(f"URL parseada: Slug='{track_name_slug}', Fecha='{race_date_str}'")
-        
-        # Crear tablas si no existen
-        if not create_database_tables():
-            logger.warning("No se pudieron crear/verificar las tablas de la base de datos")
-        
-        # Inicializar Playwright
-        pw_instance, browser, page = _initialize_playwright_and_load_page(url)
-        page_title = page.title() if page else "N/A"
-
-        # Buscar contenedores de carreras
-        race_containers = page.query_selector_all('div.my-5') 
-        logger.info(f"Encontrados {len(race_containers)} contenedores de carreras")
-
-        if not race_containers:
-            _close_playwright(pw_instance, browser, page)
+        if result.get('success'):
             return jsonify({
-                "message": "No se encontraron contenedores de carreras en la página",
-                "page_title": page_title,
-                "url_processed": url,
-                "data": []
-            }), 200
-
-        all_races_data = []
-        
-        # Procesar cada carrera
-        for race_container in race_containers:
-            processed_data = _process_race_container(race_container, track_name_slug, race_date_obj, url)
-            if processed_data:
-                all_races_data.append(processed_data)
-                
-                # Guardar en base de datos
-                if save_race_data_to_db(processed_data, url):
-                    logger.info(f"Carrera {processed_data.get('race_id')} guardada en BD exitosamente")
-                else:
-                    logger.warning(f"Error al guardar carrera {processed_data.get('race_id')} en BD")
-        
-        _close_playwright(pw_instance, browser, page)
-        
-        return jsonify({
-            "data": all_races_data,
-            "page_title": page_title,
-            "url_processed": url,
-            "total_races": len(all_races_data)
-        })
+                "success": True,
+                "races": result.get('races', []),
+                "page_title": result.get('page_title', 'N/A'),
+                "url": url,
+                "total_races": result.get('total_races', 0),
+                "message": f"Scraping completado: {result.get('total_races', 0)} carreras procesadas. Los perfiles de caballos se completaron automáticamente."
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": result.get('error', 'Error desconocido')
+            }), 500
         
     except Exception as e:
         logger.error(f"Error general en scraping: {e}")
@@ -96,22 +60,54 @@ def scrape_horses_for_race(race_id):
         
         logger.info(f"Iniciando scraping de caballos para carrera: {race_id}")
         
-        # Obtener participantes de la carrera
+        # Obtener participantes de la carrera usando horse_id
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
         
         cur = conn.cursor()
         cur.execute("""
-            SELECT horse_id, horse_name FROM race_entries 
-            WHERE race_id = %s AND horse_id IS NOT NULL AND horse_id != 'N/A'
+            SELECT re.horse_id, re.horse_name 
+            FROM race_entries re
+            LEFT JOIN horses h ON re.horse_id = h.horse_id
+            WHERE re.race_id = %s 
+            AND re.horse_id IS NOT NULL 
+            AND re.horse_id != 'N/A'
+            AND (
+                h.updated_at IS NULL 
+                OR h.updated_at < NOW() - INTERVAL '20 days'
+            )
         """, (race_id,))
         
         horses = cur.fetchall()
+        
+        # También contar cuántos caballos ya están actualizados
+        cur.execute("""
+            SELECT COUNT(*) FROM race_entries re
+            LEFT JOIN horses h ON re.horse_id = h.horse_id
+            WHERE re.race_id = %s 
+            AND re.horse_id IS NOT NULL 
+            AND re.horse_id != 'N/A'
+            AND h.updated_at IS NOT NULL 
+            AND h.updated_at >= NOW() - INTERVAL '20 days'
+        """, (race_id,))
+        
+        skipped_result = cur.fetchone()
+        skipped_count = skipped_result[0] if skipped_result else 0
+        
         if not horses:
             cur.close()
             conn.close()
-            return jsonify({'error': f'No se encontraron caballos para la carrera {race_id}'}), 404
+            if skipped_count > 0:
+                return jsonify({
+                    'success': True,
+                    'race_id': race_id,
+                    'message': f'Todos los {skipped_count} caballos ya fueron actualizados en los últimos 20 días',
+                    'scraped_count': 0,
+                    'skipped_count': skipped_count
+                })
+            else:
+                return jsonify({'error': f'No se encontraron caballos para la carrera {race_id}'}), 404
         
         scraped_count = 0
         errors = []
@@ -119,9 +115,11 @@ def scrape_horses_for_race(race_id):
         for horse_id, horse_name in horses:
             try:
                 logger.info(f"Scrapeando caballo: {horse_name} ({horse_id})")
+                
                 horse_data = scrape_horse_profile(horse_id, horse_name)
                 
                 if horse_data:
+                    # Usar el horse_id para guardar en BD
                     update_horse_data(cur, horse_id, horse_data)
                     scraped_count += 1
                     logger.info(f"✅ Caballo {horse_name} scrapeado exitosamente")
@@ -141,14 +139,16 @@ def scrape_horses_for_race(race_id):
         return jsonify({
             'success': True,
             'race_id': race_id,
-            'scraped_count': scraped_count,
             'total_horses': len(horses),
-            'errors': errors
+            'scraped_count': scraped_count,
+            'skipped_count': skipped_count,
+            'errors': errors,
+            'message': f'Scraping completado: {scraped_count}/{len(horses)} caballos procesados, {skipped_count} omitidos (actualizados recientemente)'
         })
         
     except Exception as e:
-        logger.error(f"Error en scrape_horses_for_race: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error en scrape_horses_for_race: {str(e)}")
+        return jsonify({'error': f'Error interno: {str(e)}'}), 500
 
 @scraping_bp.route('/scrape-all-horses', methods=['POST'])
 def scrape_all_horses():
@@ -165,11 +165,33 @@ def scrape_all_horses():
         
         cur = conn.cursor()
         cur.execute("""
-            SELECT DISTINCT horse_id, horse_name FROM race_entries 
-            WHERE horse_id IS NOT NULL AND horse_id != 'N/A'
+            SELECT DISTINCT re.horse_id, re.horse_name 
+            FROM race_entries re
+            LEFT JOIN horses h ON re.horse_id = h.horse_id
+            WHERE re.horse_id IS NOT NULL 
+            AND re.horse_id != 'N/A'
+            AND (
+                h.updated_at IS NULL 
+                OR h.updated_at < NOW() - INTERVAL '20 days'
+            )
         """)
         
         horses = cur.fetchall()
+        
+        # Contar caballos omitidos
+        cur.execute("""
+            SELECT COUNT(DISTINCT re.horse_id) 
+            FROM race_entries re
+            LEFT JOIN horses h ON re.horse_id = h.horse_id
+            WHERE re.horse_id IS NOT NULL 
+            AND re.horse_id != 'N/A'
+            AND h.updated_at IS NOT NULL 
+            AND h.updated_at >= NOW() - INTERVAL '20 days'
+        """)
+        
+        skipped_result = cur.fetchone()
+        skipped_count = skipped_result[0] if skipped_result else 0
+        
         if not horses:
             cur.close()
             conn.close()
@@ -181,6 +203,7 @@ def scrape_all_horses():
         for horse_id, horse_name in horses:
             try:
                 logger.info(f"Scrapeando caballo: {horse_name} ({horse_id})")
+                
                 horse_data = scrape_horse_profile(horse_id, horse_name)
                 
                 if horse_data:
@@ -202,14 +225,16 @@ def scrape_all_horses():
         
         return jsonify({
             'success': True,
-            'total_horses': scraped_count,
-            'total_races': 'N/A',
-            'errors': errors
+            'total_horses': len(horses),
+            'scraped_count': scraped_count,
+            'skipped_count': skipped_count,
+            'errors': errors,
+            'message': f'Scraping masivo completado: {scraped_count}/{len(horses)} caballos procesados, {skipped_count} omitidos (actualizados recientemente)'
         })
         
     except Exception as e:
-        logger.error(f"Error en scrape_all_horses: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error en scrape_all_horses: {str(e)}")
+        return jsonify({'error': f'Error interno: {str(e)}'}), 500
 
 @scraping_bp.route('/scrape-horse-profile', methods=['POST'])
 def scrape_horse_profile_endpoint():
@@ -262,7 +287,8 @@ def scrape_horse_profile_endpoint():
             'breeder': horse_data.get('breeder'),
             'breeder_ipa': horse_data.get('breeder_ipa'),
             'country_of_birth': horse_data.get('country_of_birth'),
-            'status': horse_data.get('status')
+            'status': horse_data.get('status'),
+            'pedigree': horse_data.get('pedigree')
         }
         
         return jsonify({
@@ -273,3 +299,191 @@ def scrape_horse_profile_endpoint():
     except Exception as e:
         logger.error(f"Error en scrape_horse_profile_endpoint: {e}")
         return jsonify({'error': str(e)}), 500
+
+@scraping_bp.route('/check-and-update-horses', methods=['POST'])
+def check_and_update_horses():
+    """Endpoint para revisar y actualizar caballos que no se han actualizado en los últimos 20 días"""
+    try:
+        from utils.database import get_db_connection
+        from services.scraping_service import scrape_horse_profile, update_horse_data
+        
+        logger.info("Revisando caballos que necesitan actualización")
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+        
+        cur = conn.cursor()
+        
+        # Buscar caballos que no se han actualizado en los últimos 20 días
+        cur.execute("""
+            SELECT horse_id, horse_name 
+            FROM horses 
+            WHERE updated_at IS NULL 
+            OR updated_at < NOW() - INTERVAL '20 days'
+            ORDER BY horse_name
+        """)
+        
+        horses_to_update = cur.fetchall()
+        
+        # Contar caballos ya actualizados
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM horses 
+            WHERE updated_at IS NOT NULL 
+            AND updated_at >= NOW() - INTERVAL '20 days'
+        """)
+        
+        updated_result = cur.fetchone()
+        already_updated_count = updated_result[0] if updated_result else 0
+        
+        if not horses_to_update:
+            cur.close()
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': f'Todos los caballos están actualizados. Total: {already_updated_count} caballos actualizados en los últimos 20 días',
+                'horses_to_update': 0,
+                'already_updated': already_updated_count,
+                'scraped_count': 0,
+                'errors': []
+            })
+        
+        scraped_count = 0
+        errors = []
+        
+        logger.info(f"Encontrados {len(horses_to_update)} caballos que necesitan actualización")
+        
+        for horse_id, horse_name in horses_to_update:
+            try:
+                logger.info(f"Actualizando caballo: {horse_name} ({horse_id})")
+                
+                horse_data = scrape_horse_profile(horse_id, horse_name)
+                
+                if horse_data:
+                    update_horse_data(cur, horse_id, horse_data)
+                    scraped_count += 1
+                    logger.info(f"✅ Caballo {horse_name} actualizado exitosamente")
+                else:
+                    errors.append(f"No se pudieron obtener datos para {horse_name}")
+                    logger.warning(f"❌ No se pudieron obtener datos para {horse_name}")
+                    
+            except Exception as e:
+                error_msg = f"Error actualizando {horse_name}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(error_msg)
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'horses_to_update': len(horses_to_update),
+            'already_updated': already_updated_count,
+            'scraped_count': scraped_count,
+            'errors': errors,
+            'message': f'Actualización completada: {scraped_count}/{len(horses_to_update)} caballos actualizados. {already_updated_count} ya estaban actualizados.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en check_and_update_horses: {str(e)}")
+        return jsonify({'error': f'Error interno: {str(e)}'}), 500
+
+@scraping_bp.route('/scrape-null-horses', methods=['POST'])
+def scrape_null_horses():
+    """Endpoint específico para scrapear solo caballos con updated_at NULL"""
+    try:
+        from utils.database import get_db_connection
+        from services.scraping_service import scrape_horse_profile, update_horse_data
+        
+        logger.info("Iniciando scraping de caballos NULL")
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+        
+        cur = conn.cursor()
+        
+        # Buscar solo caballos con updated_at NULL
+        cur.execute("""
+            SELECT horse_id, horse_name 
+            FROM horses 
+            WHERE updated_at IS NULL
+            ORDER BY horse_name
+        """)
+        
+        null_horses = cur.fetchall()
+        
+        if not null_horses:
+            cur.close()
+            conn.close()
+            return jsonify({
+                'success': True,
+                'message': 'No hay caballos con updated_at NULL',
+                'null_horses_found': 0,
+                'scraped_count': 0,
+                'errors': []
+            })
+        
+        scraped_count = 0
+        errors = []
+        
+        logger.info(f"Encontrados {len(null_horses)} caballos con updated_at NULL")
+        
+        for horse_id, horse_name in null_horses:
+            try:
+                logger.info(f"Scrapeando caballo NULL: {horse_name} ({horse_id})")
+                
+                horse_data = scrape_horse_profile(horse_id, horse_name)
+                
+                if horse_data:
+                    update_horse_data(cur, horse_id, horse_data)
+                    scraped_count += 1
+                    logger.info(f"✅ Caballo NULL {horse_name} scrapeado exitosamente")
+                else:
+                    errors.append(f"No se pudieron obtener datos para {horse_name}")
+                    logger.warning(f"❌ No se pudieron obtener datos para {horse_name}")
+                    
+            except Exception as e:
+                error_msg = f"Error scrapeando {horse_name}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(error_msg)
+                
+                # Si hay error de transacción, hacer rollback y crear nueva conexión
+                if 'current transaction is aborted' in str(e):
+                    logger.warning("Transacción abortada, creando nueva conexión")
+                    try:
+                        conn.rollback()
+                        cur.close()
+                        conn.close()
+                        
+                        # Nueva conexión
+                        conn = get_db_connection()
+                        if conn:
+                            cur = conn.cursor()
+                        else:
+                            break
+                    except Exception as rollback_error:
+                        logger.error(f"Error en rollback: {rollback_error}")
+                        break
+        
+        if conn:
+            try:
+                conn.commit()
+                cur.close()
+                conn.close()
+            except Exception as commit_error:
+                logger.error(f"Error en commit final: {commit_error}")
+        
+        return jsonify({
+            'success': True,
+            'null_horses_found': len(null_horses),
+            'scraped_count': scraped_count,
+            'errors': errors,
+            'message': f'Scraping NULL completado: {scraped_count}/{len(null_horses)} caballos NULL procesados'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en scrape_null_horses: {str(e)}")
+        return jsonify({'error': f'Error interno: {str(e)}'}), 500

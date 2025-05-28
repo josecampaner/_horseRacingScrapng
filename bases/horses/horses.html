@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caballos - Horse Racing System</title>
+    <link rel="stylesheet" href="horses/css/styles.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <div class="nav-container">
+            <div class="logo">🏇 Horse Racing System</div>
+            <nav class="nav-menu">
+                <a href="/" class="nav-btn">🏁 Carreras</a>
+                <a href="/horses" class="nav-btn active">🐎 Caballos</a>
+                <a href="/dashboard" class="nav-btn">📊 Dashboard</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1>🐎 Scraper de Caballos</h1>
+        
+        <!-- Formulario de búsqueda estilizado -->
+        <div class="search-form">
+            <div class="input-group">
+                <input type="text" 
+                       class="url-input"
+                       id="horseId" 
+                       placeholder="🐎 Horse ID (ej: Mine_Strike, Chabelita, Fast_Fixer)"
+                       onkeypress="handleKeyPress(event)">
+                <button class="scrape-btn" onclick="scrapeHorse()">
+                    <span class="btn-icon">🔍</span>
+                    <span class="btn-text">Scrapear</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Resultados del scraping -->
+        <div id="horseResults" class="horse-results">
+            <!-- Los resultados aparecerán aquí -->
+        </div>
+    </div>
+
+    <script src="horses/js/main.js"></script>
+</body>
+</html>

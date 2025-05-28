@@ -24,17 +24,17 @@ app.register_blueprint(scraping_bp, url_prefix='/api')
 @app.route('/')
 def index():
     """Página principal de carreras"""
-    return send_from_directory('bases/entries', 'index.html')
+    return send_from_directory('bases/entries', 'races.html')
 
 @app.route('/horses')
 def horses_page():
     """Página de caballos"""
-    return send_from_directory('bases/horses', 'caballos.html')
+    return send_from_directory('bases/horses', 'horses.html')
 
 @app.route('/dashboard')
 def dashboard_page():
     """Página del dashboard"""
-    return send_from_directory('bases/dashboard', 'index.html')
+    return send_from_directory('bases/dashboard', 'dashboard.html')
 
 # Rutas para servir archivos estáticos
 @app.route('/css/<path:filename>')
@@ -58,4 +58,4 @@ def serve_horses_js(filename):
     return send_from_directory('bases/horses/js', filename)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5004, debug=True)

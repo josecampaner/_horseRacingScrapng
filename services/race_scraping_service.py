@@ -2,10 +2,18 @@ import logging
 import urllib.parse
 from playwright.sync_api import sync_playwright, Error as PlaywrightError
 from datetime import datetime
+import psycopg2
+
+# 🚨 VERSIÓN NUEVA CON DETECCIÓN DE SCRATCHED - FORZAR RECARGA 🚨
+print("="*80)
+print("🐎 RACE_SCRAPING_SERVICE VERSION 2.0 - SCRATCH DETECTION ACTIVE")
+print("🔍 Si ves este mensaje, Flask está usando la versión NUEVA del código")
+print("="*80)
 
 from utils.race_parser import parse_race_url_data, parse_race_title_data, generate_race_id
 from utils.text_processing import clean_text, clean_race_type, extract_age_from_conditions, extract_purse_value
 from database.models import create_database_tables, save_race_data_to_db
+from services.scraping_service import scrape_horse_profile, update_horse_data
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +277,54 @@ def process_race_container(race_container, track_name_slug, race_date_obj, main_
             
             for row_idx, row in enumerate(participant_rows):
                 try:
+                    # ✅ MEJORADO: Detectar status del caballo con más métodos - VERSION 2.0
+                    status = 'active'  # Default status
+                    debug_info = []  # Para debugging
+                    
+                    # ⚠️ FORZAR DEBUG: Mostrar SIEMPRE información de cada participante
+                    debug_info.append(f"🐎 HORSE_DETECTION_v2.0_ACTIVE")
+                    
+                    # 1. Verificar la clase de la fila (PRIMERA PRIORIDAD)
+                    row_class = row.get_attribute('class') or ''
+                    debug_info.append(f"row_class='{row_class}'")
+                    if 'scratched' in row_class.lower():
+                        status = 'scratched'
+                        debug_info.append("✅ DETECTED via row_class")
+                    
+                    # 2. CORREGIDO: Verificar SOLO la columna específica de scratch
+                    scratch_cell = row.query_selector('td.table-entries-scratch-col')
+                    if scratch_cell:
+                        scratch_text = scratch_cell.inner_text().strip()
+                        scratch_html = scratch_cell.inner_html().strip()
+                        debug_info.append(f"scratch_text='{scratch_text}'")
+                        debug_info.append(f"scratch_html='{scratch_html}'")
+                        
+                        # SOLO verificar si contiene específicamente "(Scratched)" o "Scratched"
+                        if scratch_text and ('(scratched)' in scratch_text.lower() or 'scratched' in scratch_text.lower()):
+                            status = 'scratched'
+                            debug_info.append(f"✅ DETECTED via scratch_text exact match")
+                    else:
+                        debug_info.append("scratch_cell=NOT_FOUND")
+                    
+                    # 3. Verificar abbr title en la última columna (ML odds) - SOLO para "SCR" 
+                    if status == 'active':  # Solo si no se detectó ya como scratched
+                        ml_abbr = row.query_selector('td:last-child .table-entries-scratch-sm abbr')
+                        if ml_abbr:
+                            abbr_title = ml_abbr.get_attribute('title') or ''
+                            abbr_text = ml_abbr.inner_text().strip()
+                            debug_info.append(f"ml_abbr_text='{abbr_text}' title='{abbr_title}'")
+                            if abbr_text.upper() == 'SCR' or '(scratched)' in abbr_title.lower():
+                                status = 'scratched'
+                                debug_info.append("✅ DETECTED via ml_abbr")
+                    
+                    # 4. Verificar si falta imagen de PP (program number) - INDICADOR FUERTE
+                    pp_img = row.query_selector('td:first-child img')
+                    if not pp_img and status == 'active':
+                        debug_info.append("⚠️ MISSING PP image - probable scratch")
+                        # En el HTML que mostraste, los scratched no tienen imagen PP
+                        status = 'scratched'
+                        debug_info.append("✅ DETECTED via missing_pp_img")
+                    
                     # Extraer Post Position (PP) - segunda columna
                     pp_cell = row.query_selector('td:nth-child(2)')
                     pp = pp_cell.inner_text().strip() if pp_cell else 'N/A'
@@ -280,20 +336,23 @@ def process_race_container(race_container, track_name_slug, race_date_obj, main_
                     sire = 'N/A'
                     
                     if horse_sire_cell:
-                        horse_link = horse_sire_cell.query_selector('h4 a.horse-link')
+                        # Extraer nombre del caballo del enlace
+                        horse_link = horse_sire_cell.query_selector('h4 a')
                         if horse_link:
                             horse_name = horse_link.inner_text().strip()
                             # Extraer horse_id del href del enlace
                             horse_href = horse_link.get_attribute('href')
                             if horse_href:
-                                # El href es algo como "/horse/Camigol" - extraemos la parte final
-                                raw_horse_id = horse_href.split('/')[-1] if '/' in horse_href else horse_href
-                                # Decodificar caracteres especiales en la URL
-                                horse_id = urllib.parse.unquote(raw_horse_id)
+                                # El href es algo como "/horse/Chabelita_1"
+                                horse_id = horse_href.split('/')[-1] if '/' in horse_href else horse_href
                         
-                        sire_p = horse_sire_cell.query_selector('p')
-                        if sire_p:
-                            sire = sire_p.inner_text().strip()
+                        # Extraer Sire - buscar en el párrafo después del h4
+                        # El sire aparece en un párrafo después del h4 con el nombre del caballo
+                        sire_paragraph = horse_sire_cell.query_selector('p')
+                        if sire_paragraph:
+                            sire_text = sire_paragraph.inner_text().strip()
+                            if sire_text and sire_text != '':
+                                sire = sire_text
                     
                     # Extraer Trainer y Jockey - quinta columna
                     trainer_jockey_cell = row.query_selector('td:nth-child(5)')
@@ -301,27 +360,40 @@ def process_race_container(race_container, track_name_slug, race_date_obj, main_
                     jockey = 'N/A'
                     
                     if trainer_jockey_cell:
-                        trainer_jockey_ps = trainer_jockey_cell.query_selector_all('p')
-                        if len(trainer_jockey_ps) >= 1:
-                            trainer = trainer_jockey_ps[0].inner_text().strip()
-                        if len(trainer_jockey_ps) >= 2:
-                            jockey = trainer_jockey_ps[1].inner_text().strip()
+                        # Buscar todos los párrafos en la celda
+                        paragraphs = trainer_jockey_cell.query_selector_all('p')
+                        if len(paragraphs) >= 2:
+                            # Primer párrafo = trainer, segundo párrafo = jockey
+                            trainer = paragraphs[0].inner_text().strip() if paragraphs[0] else 'N/A'
+                            jockey = paragraphs[1].inner_text().strip() if paragraphs[1] else 'N/A'
+                        elif len(paragraphs) == 1:
+                            # Solo hay un párrafo, probablemente el trainer
+                            trainer = paragraphs[0].inner_text().strip() if paragraphs[0] else 'N/A'
+                        else:
+                            # Fallback: usar el texto completo y dividir por líneas
+                            cell_text = trainer_jockey_cell.inner_text().strip()
+                            if cell_text:
+                                lines = cell_text.split('\n')
+                                trainer = lines[0].strip() if len(lines) > 0 else 'N/A'
+                                jockey = lines[1].strip() if len(lines) > 1 else 'N/A'
                     
-                    # Solo agregar si tenemos datos válidos
-                    if horse_name != 'N/A' or pp != 'N/A':
-                        participant = {
-                            'pp': pp,
-                            'horse_name': horse_name,
-                            'horse_id': horse_id,
-                            'sire': sire,
-                            'trainer': trainer,
-                            'jockey': jockey
-                        }
-                        
-                        race_data['participants'].append(participant)
-                        logging.info(f"    Participante {row_idx+1}: PP={pp}, Horse={horse_name}, HorseID={horse_id}, Sire={sire}, Trainer={trainer}, Jockey={jockey}")
-                    else:
-                        logging.info(f"    Fila {row_idx+1} omitida - sin datos válidos de caballo")
+                    participant = {
+                        'pp': pp,
+                        'horse_name': horse_name,
+                        'horse_id': horse_id,
+                        'sire': sire,
+                        'trainer': trainer,
+                        'jockey': jockey,
+                        'status': status  # ✅ NUEVO: Agregar el status detectado
+                    }
+                    
+                    race_data['participants'].append(participant)
+                    status_emoji = '❌' if status == 'scratched' else '✅'
+                    
+                    # Log con información de debug SIEMPRE para diagnosticar
+                    logging.info(f"    🔍 DEBUG Participante {row_idx+1}: {' | '.join(debug_info)}")
+                    
+                    logging.info(f"    Participante {row_idx+1}: PP={pp}, Horse={horse_name}, HorseID={horse_id}, Sire={sire}, Trainer={trainer}, Jockey={jockey}, Status={status_emoji}")
                     
                 except Exception as e:
                     logging.warning(f"    Error procesando fila {row_idx+1} de participante: {e}")
@@ -357,6 +429,86 @@ def close_playwright(pw_instance, browser, page):
             logging.info("Instancia de Playwright detenida.")
         except Exception as e_pw:
             logging.error(f"Error al detener la instancia de Playwright: {e_pw}", exc_info=True)
+
+def auto_complete_horse_profiles():
+    """Función para completar automáticamente los perfiles de caballos incompletos"""
+    logger.info("🐎 Iniciando completado automático de perfiles de caballos...")
+    
+    try:
+        # Conectar a la base de datos
+        conn = psycopg2.connect(
+            host="localhost",
+            database="caballos_db",
+            user="macm1",
+            password=""
+        )
+        cursor = conn.cursor()
+        
+        # Buscar caballos que necesitan perfiles completos: NULL o más de 20 días sin actualizar
+        query = """
+            SELECT horse_id, horse_name 
+            FROM horses 
+            WHERE updated_at IS NULL OR updated_at < NOW() - INTERVAL '20 days'
+            ORDER BY created_at DESC
+        """
+        
+        cursor.execute(query)
+        horses_to_process = cursor.fetchall()
+        
+        if not horses_to_process:
+            logger.info("✅ No hay caballos que necesiten completar perfiles")
+            cursor.close()
+            conn.close()
+            return
+        
+        logger.info(f"🔍 Encontrados {len(horses_to_process)} caballos que necesitan perfiles completos")
+        logger.info("🚀 Procesando TODOS los caballos sin límites de tiempo...")
+        
+        completed_count = 0
+        error_count = 0
+        
+        for horse_id, horse_name in horses_to_process:
+            try:
+                logger.info(f"📋 Procesando perfil de: {horse_name} (ID: {horse_id})")
+                
+                # Scrapear el perfil del caballo
+                horse_data = scrape_horse_profile(horse_id, horse_name)
+                
+                if horse_data:
+                    # Actualizar los datos en la base de datos
+                    update_horse_data(cursor, horse_id, horse_data)
+                    
+                    # Actualizar updated_at
+                    cursor.execute(
+                        "UPDATE horses SET updated_at = %s WHERE horse_id = %s",
+                        (datetime.now(), horse_id)
+                    )
+                    
+                    conn.commit()
+                    completed_count += 1
+                    logger.info(f"✅ Perfil completado para: {horse_name}")
+                else:
+                    error_count += 1
+                    logger.warning(f"⚠️ No se pudieron obtener datos para: {horse_name}")
+                    
+            except Exception as e:
+                error_count += 1
+                logger.error(f"❌ Error procesando {horse_name}: {e}")
+                conn.rollback()
+        
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"🏁 Completado automático de perfiles finalizado:")
+        logger.info(f"   ✅ Perfiles completados: {completed_count}")
+        logger.info(f"   ❌ Errores: {error_count}")
+        logger.info(f"   📊 Total procesados: {len(horses_to_process)}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error en auto_complete_horse_profiles: {e}")
+        if 'conn' in locals():
+            conn.rollback()
+            conn.close()
 
 def scrape_races_from_url(url):
     """Función principal para scrapear carreras desde una URL"""
@@ -429,6 +581,9 @@ def scrape_races_from_url(url):
         
         # Cerrar Playwright DESPUÉS de procesar todo
         close_playwright(pw_instance, browser, page)
+        
+        # 🐎 REMOVIDO: Ya NO completamos perfiles automáticamente
+        # El completado de perfiles solo ocurre cuando el usuario da clic en los botones
         
         return {
             'success': True,

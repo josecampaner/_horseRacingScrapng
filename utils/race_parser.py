@@ -9,8 +9,10 @@ logger = logging.getLogger(__name__)
 TRACK_CODES = {
     "gulfstream-park": "GP",
     "santa-anita-park": "SA",
+    "SANTA-ANIT": "SA",  # Código largo también mapea a SA
     "keeneland": "KEE",
     "churchill-downs": "CD",
+    "thistledown": "THISTLEDOW",
     # Añadir más mapeos según sea necesario
 }
 
