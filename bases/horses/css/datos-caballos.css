@@ -1,0 +1,259 @@
+/* ===== CSS COMPONENTE DATOS CABALLOS - SIN AZULES NI MOVIMIENTOS ===== */
+
+/* Loading spinner - SIMPLE */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.2em;
+    color: #666;
+    background: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+/* Error messages - SIMPLE */
+.error {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 5px;
+    border: 1px solid #dc3545;
+    margin: 1rem 0;
+    font-weight: 500;
+}
+
+/* Button group */
+.button-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.btn-primary {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    flex: 1;
+}
+
+.btn-primary:hover {
+    background: #218838;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    flex: 1;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Complete horse profile container */
+.complete-horse-profile {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Horse profile container - SIMPLE */
+.horse-profile {
+    background: #ffffff;
+    border-radius: 5px;
+    padding: 1rem;
+    margin: 1rem 0;
+    border: 1px solid #ddd;
+}
+
+/* Title - SIMPLE */
+.horse-profile h2 {
+    color: #333;
+    font-size: 1.4em;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+/* Details grid */
+.horse-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.horse-details-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+/* Detail items - COMPACTO HORIZONTAL */
+.detail-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.2rem 0;
+}
+
+.detail-item strong {
+    color: #555;
+    font-weight: 600;
+    font-size: 0.9em;
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.detail-item .value,
+.detail-item .ipa-text {
+    color: #333;
+    padding: 0.3rem 0.5rem;
+    background: #f8f9fa;
+    border-radius: 3px;
+    border: 1px solid #dee2e6;
+    flex: 1;
+    font-size: 0.9em;
+}
+
+.detail-item .ipa-text {
+    font-family: 'Courier New', monospace;
+    background: #ffffff;
+    border: 1px solid #ced4da;
+}
+
+/* Profile link */
+.profile-link {
+    color: #6c757d;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.profile-link:hover {
+    color: #495057;
+    text-decoration: underline;
+}
+
+/* IPA Section */
+.ipa-section {
+    background: #f8f9fa;
+    border-radius: 5px;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+}
+
+.ipa-section h3 {
+    color: #333;
+    font-size: 1.1em;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+}
+
+.ipa-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.ipa-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ipa-item strong {
+    color: #555;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.ipa-text {
+    color: #333;
+    padding: 0.5rem;
+    background: #ffffff;
+    border-radius: 3px;
+    border: 1px solid #ced4da;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+/* Basic pedigree fallback styles */
+.basic-pedigree {
+    background: #f8f9fa;
+    border-radius: 5px;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+}
+
+.pedigree-generation {
+    margin-bottom: 1rem;
+}
+
+.pedigree-generation:last-child {
+    margin-bottom: 0;
+}
+
+.pedigree-generation h4 {
+    color: #333;
+    font-size: 1em;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.25rem;
+}
+
+.parent-info,
+.grandparent-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.parent-info div,
+.grandparent-info div {
+    padding: 0.5rem;
+    background: #ffffff;
+    border-radius: 3px;
+    border: 1px solid #ced4da;
+}
+
+/* Responsive Design - SOLO para elementos que no rompan las dos columnas */
+@media (max-width: 480px) {
+    .horse-profile {
+        padding: 0.75rem;
+    }
+    
+    .ipa-section {
+        padding: 0.75rem;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9em;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+}
+
+@media print {
+    .horse-profile {
+        border: 1px solid #000;
+    }
+    
+    .loading, .error {
+        display: none;
+    }
+} 
