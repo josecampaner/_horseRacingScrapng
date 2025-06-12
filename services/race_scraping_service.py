@@ -5,10 +5,10 @@ from datetime import datetime
 import psycopg2
 
 # 🚨 VERSIÓN NUEVA CON DETECCIÓN DE SCRATCHED - FORZAR RECARGA 🚨
-print("="*80)
-print("🐎 RACE_SCRAPING_SERVICE VERSION 2.0 - SCRATCH DETECTION ACTIVE")
-print("🔍 Si ves este mensaje, Flask está usando la versión NUEVA del código")
-print("="*80)
+logger.info("=" * 80)
+logger.info("🐎 RACE_SCRAPING_SERVICE VERSION 2.0 - SCRATCH DETECTION ACTIVE")
+logger.info("🔍 Si ves este mensaje, Flask está usando la versión NUEVA del código")
+logger.info("=" * 80)
 
 from utils.race_parser import parse_race_url_data, parse_race_title_data, generate_race_id
 from utils.text_processing import clean_text, clean_race_type, extract_age_from_conditions, extract_purse_value

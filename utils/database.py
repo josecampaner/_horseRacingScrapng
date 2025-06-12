@@ -1,18 +1,19 @@
-# utils/database.py - Conexión y utilidades de base de datos
-
-import psycopg2
+"""Database connection utilities."""
+import os
 import logging
+import psycopg2
 
 logger = logging.getLogger(__name__)
 
+
 def get_db_connection():
-    """Obtener conexión a la base de datos"""
+    """Get a PostgreSQL database connection using environment variables."""
     try:
         conn = psycopg2.connect(
-            host="localhost",
-            database="caballos_db",
-            user="macm1",
-            password=""
+            host=os.getenv("DB_HOST", "localhost"),
+            database=os.getenv("DB_NAME", "caballos_db"),
+            user=os.getenv("DB_USER", "macm1"),
+            password=os.getenv("DB_PASSWORD", ""),
         )
         return conn
     except Exception as e:

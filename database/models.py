@@ -260,8 +260,12 @@ def save_race_data_to_db(race_data, main_page_url):
                 # Si tampoco está en fallback, es un hipódromo COMPLETAMENTE NUEVO
                 if not track_name_base:
                     # 🚨 DETECTAR HIPÓDROMO NUEVO
-                    logger.warning(f"🆕 HIPÓDROMO NUEVO DETECTADO: '{track_code_short}' - Generando nombre automáticamente")
-                    print(f"🆕 HIPÓDROMO NUEVO: {track_code_short} - Revisa que el nombre sea correcto")
+                    logger.warning(
+                        f"🆕 HIPÓDROMO NUEVO DETECTADO: '{track_code_short}' - Generando nombre automáticamente"
+                    )
+                    logger.info(
+                        f"🆕 HIPÓDROMO NUEVO: {track_code_short} - Revisa que el nombre sea correcto"
+                    )
                     
                     # Reglas inteligentes para generar nombre desde código
                     if len(track_code_short) <= 3:
@@ -290,7 +294,9 @@ def save_race_data_to_db(race_data, main_page_url):
             """
             cur.execute(insert_track_query, (track_code_short, track_name_base, track_ipa, country or 'USA'))
             
-            print(f"✅ Auto-agregado track: {track_code_short} -> {track_name_base} ({track_ipa})")
+            logger.info(
+                f"✅ Auto-agregado track: {track_code_short} -> {track_name_base} ({track_ipa})"
+            )
         
         # Generar track_name final con formato "(País)"
         if country and country != 'Unknown':
