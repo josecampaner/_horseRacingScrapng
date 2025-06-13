@@ -253,7 +253,17 @@ def save_race_data_to_db(race_data, main_page_url):
             if not track_name_base:
                 track_name_mapping_fallback = {
                     'THISTLEDOW': 'Thistledown',
-                    'Tdn': 'Thistledown',
+                    'TDN': 'Thistledown',
+                    'BEL': 'Belmont Park',
+                    'SAR': 'Saratoga',
+                    'DMR': 'Del Mar',
+                    'OP': 'Oaklawn Park',
+                    'TAM': 'Tampa Bay Downs',
+                    'LRL': 'Laurel Park',
+                    'MTH': 'Monmouth Park',
+                    'PIM': 'Pimlico',
+                    'AQU': 'Aqueduct',
+                    'WO': 'Woodbine',
                 }
                 track_name_base = track_name_mapping_fallback.get(track_code_short, None)
                 

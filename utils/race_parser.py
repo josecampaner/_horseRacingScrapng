@@ -9,10 +9,20 @@ logger = logging.getLogger(__name__)
 TRACK_CODES = {
     "gulfstream-park": "GP",
     "santa-anita-park": "SA",
-    "SANTA-ANIT": "SA",  # Código largo también mapea a SA
+    "SANTA-ANIT": "SA",  # Variante abreviada usada en algunas URLs
     "keeneland": "KEE",
     "churchill-downs": "CD",
-    "thistledown": "THISTLEDOW",
+    "belmont-park": "BEL",
+    "oaklawn-park": "OP",
+    "del-mar": "DMR",
+    "tampa-bay-downs": "TAM",
+    "laurel-park": "LRL",
+    "saratoga": "SAR",
+    "monmouth-park": "MTH",
+    "pimlico": "PIM",
+    "aqueduct": "AQU",
+    "woodbine": "WO",
+    "thistledown": "TDN",
     # Añadir más mapeos según sea necesario
 }
 
